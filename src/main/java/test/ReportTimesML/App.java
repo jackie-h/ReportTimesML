@@ -1,17 +1,28 @@
 package test.ReportTimesML;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URL;
-import java.time.LocalDate;
-import java.util.function.Consumer;
-import java.util.function.Function;
-
+import org.deeplearning4j.datasets.iterator.DoublesDataSetIterator;
+import org.deeplearning4j.datasets.iterator.IteratorDataSetIterator;
+import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.MultiLayerConfiguration;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
+import org.deeplearning4j.nn.conf.layers.DenseLayer;
+import org.deeplearning4j.nn.conf.layers.OutputLayer;
+import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
+import org.deeplearning4j.optimize.listeners.EvaluativeListener;
+import org.nd4j.evaluation.classification.Evaluation;
+import org.nd4j.linalg.activations.Activation;
+import org.nd4j.linalg.cpu.nativecpu.NDArray;
+import org.nd4j.linalg.dataset.DataSet;
+import org.nd4j.linalg.dataset.api.DataSetPreProcessor;
+import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
+import org.nd4j.linalg.lossfunctions.LossFunctions;
 import tech.tablesaw.api.*;
 import tech.tablesaw.columns.Column;
-import tech.tablesaw.columns.numbers.FloatParser;
+
+import java.io.IOException;
+import java.net.URL;
+import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Hello world!
@@ -125,9 +136,63 @@ public class App {
 
             System.out.println("Normalized\n" + trainingDataSet.print());
 
+            //# Construct neural network with Keras API on top of TensorFlow. Using two layers with 50 units, non linear sigmoid activation, SGD optimizer and
+            //# mean squared error loss to check training quality
             //
-            //MultiLayerConfiguration conf = new NeuralNetConfiguration.Builder()
-            //        .
+            //def build_model():
+            //  model = keras.Sequential([
+            //    layers.Dense(50, activation='sigmoid', input_shape=[len(train_dataset.keys())]),
+            //    layers.Dense(50, activation='sigmoid'),
+            //    layers.Dense(1)
+            //  ])
+            //
+            //  optimizer = keras.optimizers.SGD(0.001)
+            //
+            //  model.compile(loss='mean_squared_error',
+            //                optimizer=optimizer,
+            //                metrics=['mean_absolute_error', 'mean_squared_error'])
+            //  return model
+            //
+            MultiLayerConfiguration conf = new NeuralNetConfiguration.Builder()
+                    //.seed(seed)
+                    .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
+                    //.learningRate(learningRate)
+                    //.updater(Updater.NESTEROVS).momentum(0.9)
+
+                    .list()
+                    .layer(0, new DenseLayer.Builder().units(50).nIn(trainingDataSet.rowCount())
+                            //.weightInit(WeightInit.SIGMOID_UNIFORM)
+                            .activation(Activation.SIGMOID)
+                            .build())
+                    .layer(1, new DenseLayer.Builder().units(50)
+                            .activation(Activation.SIGMOID).build())
+                    .layer(2, new DenseLayer.Builder().units(1).build())
+                    .layer( 3, new OutputLayer.Builder(LossFunctions.LossFunction.MSE)
+                            .build())
+                    .build();
+
+            MultiLayerNetwork model = new MultiLayerNetwork(conf);
+            model.init();
+            model.addListeners(new EvaluativeListener());
+
+//            # Using 20% of data for training validation
+//            history = model.fit(
+//                    normed_train_data, train_labels,
+//                    epochs=EPOCHS, validation_split = 0.2, batch_size=40, verbose=0,
+//                    callbacks=[PrintDot()])
+
+            int numEpochs = 1000;
+            model.setEpochCount(numEpochs);
+
+            model.fit(new NDArray(), new NDArray(train_labels.numberColumn(0).asDoubleArray()));
+
+
+            System.out.println("Evaluate model....");
+
+            Evaluation eval = model.evaluate(new DoublesDataSetIterator(), 40);
+            System.out.println(eval.stats());
+
+
 
         } catch (IOException e) {
             // TODO Auto-generated catch block
