@@ -5,6 +5,7 @@ import org.deeplearning4j.datasets.iterator.IteratorDataSetIterator;
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.MultiLayerConfiguration;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
+import org.deeplearning4j.nn.conf.Updater;
 import org.deeplearning4j.nn.conf.layers.DenseLayer;
 import org.deeplearning4j.nn.conf.layers.OutputLayer;
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
@@ -15,6 +16,8 @@ import org.nd4j.linalg.cpu.nativecpu.NDArray;
 import org.nd4j.linalg.dataset.DataSet;
 import org.nd4j.linalg.dataset.api.DataSetPreProcessor;
 import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
+import org.nd4j.linalg.learning.SgdUpdater;
+import org.nd4j.linalg.learning.config.Sgd;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
 import tech.tablesaw.api.*;
 import tech.tablesaw.columns.Column;
@@ -158,9 +161,7 @@ public class App {
             MultiLayerConfiguration conf = new NeuralNetConfiguration.Builder()
                     //.seed(seed)
                     .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
-                    //.learningRate(learningRate)
-                    //.updater(Updater.NESTEROVS).momentum(0.9)
-
+                    .updater(new Sgd(0.001))
                     .list()
                     .layer(0, new DenseLayer.Builder().units(50).nIn(trainingDataSet.rowCount())
                             //.weightInit(WeightInit.SIGMOID_UNIFORM)
@@ -169,12 +170,13 @@ public class App {
                     .layer(1, new DenseLayer.Builder().units(50)
                             .activation(Activation.SIGMOID).build())
                     .layer(2, new DenseLayer.Builder().units(1).build())
-                    .layer( 3, new OutputLayer.Builder(LossFunctions.LossFunction.MSE)
-                            .build())
+                    //.layer( 3, new OutputLayer.Builder(LossFunctions.LossFunction.MSE).build())
                     .build();
 
             MultiLayerNetwork model = new MultiLayerNetwork(conf);
+
             model.init();
+            System.out.println(model.summary());
             //model.addListeners(new EvaluativeListener());
 
 //            # Using 20% of data for training validation
@@ -185,6 +187,7 @@ public class App {
 
             int numEpochs = 1000;
             model.setEpochCount(numEpochs);
+
 
             //model.fit(new NDArray(), new NDArray(train_labels.numberColumn(0).asDoubleArray()));
 
