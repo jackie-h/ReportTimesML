@@ -93,23 +93,23 @@ public class App {
             //transpose
             summaryTable.removeColumns("exec_time");
             StringColumn measures = summaryTable.stringColumn("Measure");
-            Table transposedSummary = Table.create();
-            transposedSummary.addColumns(StringColumn.create("Column"));
+            Table train_stats = Table.create();
+            train_stats.addColumns(StringColumn.create("Column"));
             for(String measure : measures)
             {
-                transposedSummary.addColumns(DoubleColumn.create(measure));
+                train_stats.addColumns(DoubleColumn.create(measure));
             }
             for(int i=1; i<summaryTable.columnCount(); i++)
             {
                 DoubleColumn val = summaryTable.doubleColumn(i);
-                Row row = transposedSummary.appendRow();
+                Row row = train_stats.appendRow();
                 row.setString(0, val.name());
                 double[] values = val.asDoubleArray();
                 for(int j=0;j<values.length;j++) {
                     row.setDouble(j+1, values[j]);
                 }
             }
-            System.out.println(transposedSummary.print());
+            System.out.println(train_stats.print());
 
             //# Remove exec_time feature from training data and keep it as a target for both training and testing
             Table train_labels = trainingDataSet.select("exec_time");
@@ -121,20 +121,22 @@ public class App {
 
             //def norm(x):
             //return (x - train_stats['mean']) / train_stats['std']
-
+            //
             //normed_train_data = norm(train_dataset)
             //normed_test_data = norm(test_dataset)
 
-            for(Column column: trainingDataSet.columns())
+            int i=0;
+            for(NumericColumn column: trainingDataSet.numberColumns())
             {
-                if(column instanceof DoubleColumn)
-                {
-                    DoubleColumn normalized = ((DoubleColumn) column).normalize();
-                    trainingDataSet.replaceColumn(normalized);
-                }
+                double mean = train_stats.row(i).getDouble("Mean");
+                double std = train_stats.row(i).getDouble("Std. Dev");
+
+                NumericColumn result = column.subtract(mean).divide(std).setName(column.name());
+                trainingDataSet.replaceColumn(column.name(), result);
+                i++;
             }
 
-            System.out.println("Normalized\n" + trainingDataSet.print());
+            System.out.println("Normalized\n" + trainingDataSet.last(10).print());
 
             //# Construct neural network with Keras API on top of TensorFlow. Using two layers with 50 units, non linear sigmoid activation, SGD optimizer and
             //# mean squared error loss to check training quality
@@ -173,7 +175,7 @@ public class App {
 
             MultiLayerNetwork model = new MultiLayerNetwork(conf);
             model.init();
-            model.addListeners(new EvaluativeListener());
+            //model.addListeners(new EvaluativeListener());
 
 //            # Using 20% of data for training validation
 //            history = model.fit(
@@ -184,13 +186,13 @@ public class App {
             int numEpochs = 1000;
             model.setEpochCount(numEpochs);
 
-            model.fit(new NDArray(), new NDArray(train_labels.numberColumn(0).asDoubleArray()));
+            //model.fit(new NDArray(), new NDArray(train_labels.numberColumn(0).asDoubleArray()));
 
 
             System.out.println("Evaluate model....");
 
-            Evaluation eval = model.evaluate(new DoublesDataSetIterator(), 40);
-            System.out.println(eval.stats());
+            //Evaluation eval = model.evaluate(new DoublesDataSetIterator(), 40);
+            //System.out.println(eval.stats());
 
 
 
