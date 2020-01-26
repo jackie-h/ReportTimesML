@@ -38,10 +38,8 @@ public class App {
         // read the CSV file
         try {
             URL url = App.class.getClassLoader().getResource("report_exec_times.csv");
-            //File csvFile = new File(url.getFile());
-            //String path = csvFile.getAbsolutePath();
-            //boolean canRead = csvFile.canRead();
             Table rawDataSet = Table.read().csv(url);
+            System.out.println("#14 - Read training data");
             System.out.println("Table read. Rows=" + rawDataSet.rowCount());
 
             Table dataSet = rawDataSet.copy();
@@ -61,6 +59,7 @@ public class App {
             dataSet.addColumns(morning, midday, afternoon);
             dataSet.removeColumns("report_id", "day_part");
 
+            System.out.println("#16");
             System.out.println(dataSet.last(5).print());
 
             System.out.println("Splitting training dataset into train (80%) and test data");
@@ -69,49 +68,23 @@ public class App {
             Table trainingDataSet = samples[0];
             Table testDataSet = samples[1];
 
+            System.out.println("#17");
             System.out.println("Training shape (" + trainingDataSet.shape() + ")");
+            System.out.println("#18");
             System.out.println("Testing shape (" + testDataSet.shape() + ")");
 
             //System.out.println(trainingDataSet.summary());
 
             System.out.println("Describe train dataset, without target feature - exec_time. Mean and std will be used to normalize training data");
 
-            Table summaryTable = Table.create();
-            trainingDataSet.columns().forEach(new Consumer<Column<?>>() {
-                @Override
-                public void accept(Column<?> column) {
-                    Table summary = column.summary();
-                    StringColumn measure = summary.stringColumn("Measure");
-                    if(summaryTable.columnCount() == 0)
-                    {
-                        summaryTable.addColumns(measure);
-                    }
-                    DoubleColumn value = summary.doubleColumn("Value");
-                    value.setName(column.name());
-                    summaryTable.addColumns(value);
-                }
-            });
+            Table summaryTable = trainingDataSet.summary();
+
             System.out.println(summaryTable.print());
 
             //transpose
             summaryTable.removeColumns("exec_time");
-            StringColumn measures = summaryTable.stringColumn("Measure");
-            Table train_stats = Table.create();
-            train_stats.addColumns(StringColumn.create("Column"));
-            for(String measure : measures)
-            {
-                train_stats.addColumns(DoubleColumn.create(measure));
-            }
-            for(int i=1; i<summaryTable.columnCount(); i++)
-            {
-                DoubleColumn val = summaryTable.doubleColumn(i);
-                Row row = train_stats.appendRow();
-                row.setString(0, val.name());
-                double[] values = val.asDoubleArray();
-                for(int j=0;j<values.length;j++) {
-                    row.setDouble(j+1, values[j]);
-                }
-            }
+            Table train_stats = summaryTable.transpose(false, true);
+            System.out.println("#19");
             System.out.println(train_stats.print());
 
             //# Remove exec_time feature from training data and keep it as a target for both training and testing
